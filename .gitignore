@@ -1,0 +1,6 @@
+build/
+dist/
+minified/
+main.spec
+__pycache__/
+lib/__pycache__/

@@ -8,7 +8,6 @@ import os
 import platform
 import json
 import pyMin.__main__ as minifier
-from alive_progress import alive_bar
 
 
 init()
@@ -61,9 +60,6 @@ formatOptions = {
 
 class Console:
     def __init__(self) -> None:
-        with alive_bar(100, ctrl_c=True, title='Loading') as bar:
-            for i in range(100):
-                bar()
 
         self.clear()
         self.variables = {
