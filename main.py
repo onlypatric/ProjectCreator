@@ -39,7 +39,7 @@ formatOptions = {
     "$$": "$",
     "$A": "&",
     "$B": "|",
-    "$C": "(",
+    "$CH0": "(",
     "$D": datetime.now().strftime("%D"),
     "$E": "\x1b",
     "$F": ")",
@@ -55,6 +55,24 @@ formatOptions = {
     "$Q": " ",
     "$S": datetime.now().strftime("%T"),
     "$V": f"{platform.version()}",
+    "$CH1":"⚡",
+    "$CH2":"✓",
+    "$CH3":"✕",
+    "$CH4":"⋆",
+    "$CH5":"✶",
+    "$CH6":"⌥",
+    "$CH7":"⌘",
+    "$CH8":"⏻",
+    "$CH9":"⏼",
+    "$CR1":"⭘",
+    "$CR2":"⎜",
+    "$CR3":"⎝",
+    "$CR4":"⎛",
+    "$CR5":"⎟",
+    "$CR6":"⎠",
+    "$CR7":"⎞",
+    "$CR8":"⋯",
+    "$CR9":"⊸",
 }
 
 
@@ -63,9 +81,10 @@ class Console:
 
         self.clear()
         self.variables = {
-            "$FORMAT": "$T2$L$T4$I$T2$G$T7$T6$U3$H$U1$T4$J$T9$Q$U3[$T7$O$T9]$U1$T1$Q$$$Q",
-            "$SHOWCODE": "True",
+            "$FORMAT": "$T2$L$T4$I$T2$G$T7$T6$U3$CR8$U1$T4$J$T9$Q$U3[$T7$O$T9]$U1$Q$T6$CH7$T1$Q$T2$CH6$Q$T7$G$G$G$T1$Q",
+            "$SHOWCODE": "False",
             "$SILENT":"False",
+            "$PATH":os.environ["PATH"]
         }
         self.variables.update({
             "$VAR":self.variables
@@ -73,7 +92,12 @@ class Console:
         self.last: str = None
         self.lastAsArray: "list[str]" = None
         self.path = os.environ["PATH"].split(";")
+        self.execPath=[]
+        for i in self.path:
+            if os.path.exists(i):
+                self.execPath.append(os.listdir(i))
         self.path.append(os.getcwd())
+        self.update()
         self.main()
 
     def clear(self):
@@ -82,8 +106,14 @@ class Console:
     def update(self) -> None:
         self.path = os.environ["PATH"].split(";")
         self.path.append(os.getcwd())
+        self.execPath=[]
+        for i in self.path:
+            if os.path.exists(i):
+                self.execPath.append(os.listdir(i))
         self.variables.update({
-                    "$VAR":self.variables
+                    "$VAR":self.variables,
+                    "$PATH":os.environ["PATH"],
+                    "$EXE":";".join([str(i) for i in self.execPath])
                 })
         formatOptions.update({
             "$D": datetime.now().strftime("%D"),
@@ -144,7 +174,7 @@ class Console:
 
                 {self.lastAsArray[0]: self.last.split(" = ")[1].split(";")[0].replace("\"","")} if not os.path.exists(self.last.split(" = ")[1].split(";")[0]) else {self.lastAsArray[0]: open(self.last.split(" = ")[1].split(";")[0].replace("\"","")).read()})
             self.update()
-            return 
+            return
 #---------------------- FORMAT VARIABLES TO THEIR VALUE
         for i in self.variables:
             if i in self.last and "vtype" in self.last:
@@ -160,6 +190,15 @@ class Console:
             if self.isArgument(i) and self.lastAsArray.index(i) > 0:
                 self.lastAsArray.append(
                     self.lastAsArray.pop(self.lastAsArray.index(i)))
+#---------------------- SHOW HOW TO EDIT PROMPT
+        if self.lastAsArray[0]=="prompt":
+            for a,b in formatOptions.items():
+                print("%-10s%-10s"%(a,b.replace("\n","\\n").replace(" ","\" \"").replace("\x1b","\\x1b")),end="")
+                if("$T" in a or "$R" in a or "$U" in a):
+                    print(f"Text{Fore.RESET}{Back.RESET}{Style_.NORMAL}")
+                else:
+                    print()
+            return
 #---------------------- List-Dir command
         if self.lastAsArray[0] == "vtype":
             if self.get(self.lastAsArray,1) is not None:
@@ -186,7 +225,7 @@ class Console:
             lib.System.out.println("")
             return;
 #---------------------- clear command
-        elif self.lastAsArray[0] == "clear":
+        elif self.lastAsArray[0] == "clear" or self.lastAsArray[0]=="cls":
             os.system("cls")
             return;
 #---------------------- change directory command
@@ -267,11 +306,16 @@ class Console:
                         lib.System.out.print(f"\n{Fore.RED if r!=0 else Fore.GREEN}•{Fore.RESET}")
                     else:
                         lib.System.out.print(f"\nExecuted with status:{Fore.RED if r!=0 else Fore.GREEN}{r}{Fore.RESET}\n")
-        elif (self.lastAsArray[0]=="exit"):
+        elif (self.lastAsArray[0]=="exit" or self.lastAsArray[0]=="quit"):
             sys.exit(0)
-#---------------------- Use os.system for anything else
+#---------------------- Use os.system for anything else (search in path btw)
         else:
-            r=os.system(self.last)
+            for i in self.variables.get("$EXE").split(";"):
+                if self.lastAsArray[0] in i:
+                    r=os.system(i+" ".join(self.lastAsArray[:1]))
+                    break;
+            else:
+                r=os.system(self.last)
             if self.variables.get("$SILENT","False")=="True":return self.update()
             if self.variables.get("$SHOWCODE","False")=="False":
                 lib.System.out.print(f"\n{Fore.RED if r!=0 else Fore.GREEN}•{Fore.RESET}")
@@ -293,6 +337,17 @@ class Console:
                     flush=True
                 )
                 self.last = input(f"{Style_.BRIGHT}")
+                if os.path.exists(self.last) and os.path.isfile(self.last) and self.last.endswith(".pj"):
+                    commas=open(self.last,encoding="utf-8").read().splitlines()
+                    index=0
+                    self.variables.update({"$SILENT":"True"})
+                    for i in commas:
+                        self.last=i
+                        index+=1
+                        if index==len(commas):
+                            self.variables.update({"$SILENT":"False"})
+                        self.readInput();
+                    continue;
                 lib.System.out.print(Style_.NORMAL,flush=True)
                 self.readInput()
             except KeyboardInterrupt or EOFError:

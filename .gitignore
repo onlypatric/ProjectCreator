@@ -4,3 +4,6 @@ minified/
 main.spec
 __pycache__/
 lib/__pycache__/
+test.py
+*.pj
+*.spec
